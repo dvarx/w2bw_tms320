@@ -20,6 +20,13 @@
 #include "device.h"
 #include "w2bw.h"
 
+struct w2bw_meas{
+    uint16_t Bx;
+    uint16_t By;
+    uint16_t Bz;
+    uint16_t Temp;
+};
+
 void init_i2c(void){
     I2C_disableModule(I2CA_BASE);
     I2C_initMaster(I2CA_BASE, DEVICE_SYSCLK_FREQ, 400000, I2C_DUTYCYCLE_50);
@@ -128,7 +135,10 @@ uint8_t i2c_read(uint8_t addr,uint8_t* data,uint8_t count){
     while(I2C_getRxFIFOStatus(I2CA_BASE)!=remaining_bytes)
         ;
     //copy the remaining bytes
-    for(i=0; i<remaining_bytes; i++)
+    //retreive the latest bit (e.g. the bit that was received most recently)
+    data[remaining_bytes-1]=I2C_getData(I2CA_BASE);
+    //copy the remaining received bits from the FIFO
+    for(i=0; i<remaining_bytes-1; i++)
         data[bytes_read+i]=I2C_getData(I2CA_BASE);
 
     //send the stop condition
@@ -136,18 +146,42 @@ uint8_t i2c_read(uint8_t addr,uint8_t* data,uint8_t count){
     return 0;
 }
 
+void parse_w2bw_meas(const uint8_t* bytes,struct w2bw_meas* meas){
+    uint16_t Bx,By,Bz,Temp;
+    Bx=bytes[0]<<4;
+    By=bytes[1]<<4;
+    Bz=bytes[2]<<4;
+    Temp=bytes[3]<<4;
+    Bx=Bx+((bytes[4]&0b11110000)>>4);
+    By=By+(bytes[4]&0b00001111);
+    Bz=Bz+(bytes[5]&0b00001111);
+    Temp=Temp+((bytes[5]&0b11000000)>>6);
+    meas->Bx=Bx;
+    meas->By=By;
+    meas->Bz=Bz;
+    meas->Temp=Temp;
+    return;
+}
+
 //definitions for w2bw comm
 //----register addresses
 const uint8_t ADDR_MOD=0x11;
+const uint8_t ADDR_CONFIG=0x10;
 //----trigger modes
 const uint8_t TRIGGER_NONE=0x00;
 const uint8_t TRIGGER_AFTER_WRITE_FRAME=0b00100000;
 //----bit-fields within registers
 //MOD1 register
 const uint8_t MOD_REG_MASK_MODE_MASTER=0b00000001;
-const uint8_t MOD_REG_MASK_INT_ENABLE=0b00000100;
+const uint8_t MOD_REG_MASK_INT_DISABLE=0b00000100;
 const uint8_t MOD_REG_MASK_ONEBYTE_EN=0b00010000;
 const uint8_t MOD_REG_MASK_ODD_PARITY_BIT=0b10000000;
+//Config Register
+const uint8_t CONFIG_REG_MASK_TRIG_AFTER5H=0b00100000;
+const uint8_t CONFIG_REG_ODD_PARITY_BOT=0b00000001;
+
+//global variables
+struct w2bw_meas current_meas;
 
 //
 // Main
@@ -187,16 +221,23 @@ void main(void)
     //enable I2C module again
     I2C_enableModule(I2CA_BASE);
 
-    //set the mode to master controlled mode, enable interrupts upon adcs conversion finished, enable 1 byte read
+    //set the mode to master controlled mode, enable interrupts (associated bit is zero), enable 1 byte read, write parity bit
+    //Hint: Parity bit needs to be set correctly, otherwise sensor will not communicate
     // format { [Trigger-Bits,Register-Address] , [Register Contents] }
     const uint8_t WRITE_CONFIG_MOD_REG[]={ADDR_MOD|TRIGGER_AFTER_WRITE_FRAME,
-                                          MOD_REG_MASK_INT_ENABLE|MOD_REG_MASK_MODE_MASTER|MOD_REG_MASK_ONEBYTE_EN};
+                                          MOD_REG_MASK_ODD_PARITY_BIT|MOD_REG_MASK_MODE_MASTER|MOD_REG_MASK_ONEBYTE_EN};
+    const uint8_t WRITE_CONFIG_CONFIG_REG[]={ADDR_CONFIG,
+                                             CONFIG_REG_ODD_PARITY_BOT|CONFIG_REG_MASK_TRIG_AFTER5H};
+    //configure the register MOD1 by writing to it
     i2c_write(0,WRITE_CONFIG_MOD_REG,2);
+    //configure the register CONFIG by writing to it
+    i2c_write(0,WRITE_CONFIG_CONFIG_REG,2);
 
     for(;;){
         DEVICE_DELAY_US(200000u);
         uint8_t read_buf[6];
         i2c_read(0,read_buf,6);
+        parse_w2bw_meas(read_buf,&current_meas);
     }
 }
 
