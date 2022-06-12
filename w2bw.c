@@ -21,9 +21,9 @@
 #include "w2bw.h"
 
 struct w2bw_meas{
-    uint16_t Bx;
-    uint16_t By;
-    uint16_t Bz;
+    int16_t Bx;
+    int16_t By;
+    int16_t Bz;
     uint16_t Temp;
 };
 
@@ -148,17 +148,24 @@ uint8_t i2c_read(uint8_t addr,uint8_t* data,uint8_t count){
 
 void parse_w2bw_meas(const uint8_t* bytes,struct w2bw_meas* meas){
     uint16_t Bx,By,Bz,Temp;
+    //read the 8 most significant bytes and fill up the leading 4 bits with either 1s or 0s
     Bx=bytes[0]<<4;
+    if(bytes[0]&0b10000000)
+        Bx=Bx|(0xF000);
     By=bytes[1]<<4;
+    if(bytes[1]&0b10000000)
+        By=By|(0xF000);
     Bz=bytes[2]<<4;
+    if(bytes[2]&0b10000000)
+        Bz=Bz|(0xF000);
     Temp=bytes[3]<<4;
     Bx=Bx+((bytes[4]&0b11110000)>>4);
     By=By+(bytes[4]&0b00001111);
     Bz=Bz+(bytes[5]&0b00001111);
     Temp=Temp+((bytes[5]&0b11000000)>>6);
-    meas->Bx=Bx;
-    meas->By=By;
-    meas->Bz=Bz;
+    meas->Bx=(int16_t)Bx;
+    meas->By=(int16_t)By;
+    meas->Bz=(int16_t)Bz;
     meas->Temp=Temp;
     return;
 }
