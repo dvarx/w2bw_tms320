@@ -20,12 +20,20 @@
 #include "device.h"
 #include "w2bw.h"
 
+uint8_t start_meas=0;
+
 struct w2bw_meas{
     int16_t Bx;
     int16_t By;
     int16_t Bz;
     uint16_t Temp;
 };
+
+__interrupt void cpuTimer0ISR(void){
+    start_meas=1;
+    GPIO_togglePin(HEARTBEAT_PIN);
+    Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP1);
+}
 
 void init_i2c(void){
     I2C_disableModule(I2CA_BASE);
@@ -73,6 +81,21 @@ void gpio_init(void){
     GPIO_setPadConfig(POWER_SUPPLY_PIN, GPIO_PIN_TYPE_STD);
     GPIO_setMasterCore(POWER_SUPPLY_PIN, GPIO_CORE_CPU1);
     GPIO_setQualificationMode(POWER_SUPPLY_PIN, GPIO_QUAL_SYNC);
+}
+
+void timer_init(void){
+    const uint32_t timer_perios_us=2000;
+    CPUTimer_setPeriod(CPUTIMER0_BASE,DEVICE_SYSCLK_FREQ/1000000*timer_perios_us/2);
+    CPUTimer_setEmulationMode(CPUTIMER0_BASE,
+                              CPUTIMER_EMULATIONMODE_STOPAFTERNEXTDECREMENT);
+    CPUTimer_setPreScaler(CPUTIMER0_BASE, 0);
+    CPUTimer_stopTimer(CPUTIMER0_BASE);
+    CPUTimer_reloadTimerCounter(CPUTIMER0_BASE);
+    CPUTimer_startTimer(CPUTIMER0_BASE);
+    //register & enable CPU Timer0 interrupt
+    Interrupt_register(INT_TIMER0, &cpuTimer0ISR);
+    CPUTimer_enableInterrupt(CPUTIMER0_BASE);
+    Interrupt_enable(INT_TIMER0);
 }
 
 inline void w2bw_power_enable(void){
@@ -240,11 +263,19 @@ void main(void)
     //configure the register CONFIG by writing to it
     i2c_write(0,WRITE_CONFIG_CONFIG_REG,2);
 
+    //set up timer & enable interrupts
+    timer_init();
+    Interrupt_enableMaster();
+    EINT;
+    ERTM;
+
     for(;;){
-        DEVICE_DELAY_US(200000u);
-        uint8_t read_buf[6];
-        i2c_read(0,read_buf,6);
-        parse_w2bw_meas(read_buf,&current_meas);
+        if(start_meas){
+            uint8_t read_buf[6];
+            i2c_read(0,read_buf,6);
+            parse_w2bw_meas(read_buf,&current_meas);
+            start_meas=0;
+        }
     }
 }
 
