@@ -21,6 +21,9 @@
 #include "w2bw.h"
 
 uint8_t start_meas=0;
+//test string for testing the serial comm
+const char teststr[]="NNAABBCC\r\n";
+uint16_t sendbuf[8];
 
 struct w2bw_meas{
     int16_t Bx;
@@ -33,6 +36,19 @@ __interrupt void cpuTimer0ISR(void){
     start_meas=1;
     GPIO_togglePin(HEARTBEAT_PIN);
     Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP1);
+}
+
+void serialize_w2bw(uint16_t* dest, const struct w2bw_meas* meas){
+    //first two bytes are for framing
+    dest[0]=0x0055;
+    dest[1]=0x0055;
+    //serialized measurements
+    dest[2]=(meas->Bx);
+    dest[3]=(meas->Bx)>>8;
+    dest[4]=(meas->By);
+    dest[5]=(meas->By)>>8;
+    dest[6]=(meas->Bz);
+    dest[7]=(meas->Bz)>>8;
 }
 
 void init_i2c(void){
@@ -67,6 +83,9 @@ void pinmux_init(void){
     // Power Supply Pin
     GPIO_setPinConfig(GPIO_1_GPIO1);
     GPIO_setPadConfig(POWER_SUPPLY_PIN,GPIO_PIN_TYPE_STD);
+    // SCIA
+    GPIO_setPinConfig(GPIO_43_SCIRXDA);
+    GPIO_setPinConfig(GPIO_42_SCITXDA);
 }
 
 void gpio_init(void){
@@ -85,7 +104,7 @@ void gpio_init(void){
 
 void timer_init(void){
     const uint32_t timer_perios_us=2000;
-    CPUTimer_setPeriod(CPUTIMER0_BASE,DEVICE_SYSCLK_FREQ/1000000*timer_perios_us/2);
+    CPUTimer_setPeriod(CPUTIMER0_BASE,DEVICE_SYSCLK_FREQ/1000000*timer_perios_us);
     CPUTimer_setEmulationMode(CPUTIMER0_BASE,
                               CPUTIMER_EMULATIONMODE_STOPAFTERNEXTDECREMENT);
     CPUTimer_setPreScaler(CPUTIMER0_BASE, 0);
@@ -96,6 +115,46 @@ void timer_init(void){
     Interrupt_register(INT_TIMER0, &cpuTimer0ISR);
     CPUTimer_enableInterrupt(CPUTIMER0_BASE);
     Interrupt_enable(INT_TIMER0);
+}
+
+void sci_comm(void){
+    //
+    // Configuration for the SCI Rx pin.
+    //
+    GPIO_setMasterCore(DEVICE_GPIO_PIN_SCIRXDA, GPIO_CORE_CPU1);
+    GPIO_setPinConfig(DEVICE_GPIO_CFG_SCIRXDA);
+    GPIO_setDirectionMode(DEVICE_GPIO_PIN_SCIRXDA, GPIO_DIR_MODE_IN);
+    GPIO_setPadConfig(DEVICE_GPIO_PIN_SCIRXDA, GPIO_PIN_TYPE_STD);
+    GPIO_setQualificationMode(DEVICE_GPIO_PIN_SCIRXDA, GPIO_QUAL_ASYNC);
+
+    //
+    // Configuration for the SCI Tx pin.
+    //
+    GPIO_setMasterCore(DEVICE_GPIO_PIN_SCITXDA, GPIO_CORE_CPU1);
+    GPIO_setPinConfig(DEVICE_GPIO_CFG_SCITXDA);
+    GPIO_setDirectionMode(DEVICE_GPIO_PIN_SCITXDA, GPIO_DIR_MODE_OUT);
+    GPIO_setPadConfig(DEVICE_GPIO_PIN_SCITXDA, GPIO_PIN_TYPE_STD);
+    GPIO_setQualificationMode(DEVICE_GPIO_PIN_SCITXDA, GPIO_QUAL_ASYNC);
+
+    //
+    // Initialize SCIA and its FIFO.
+    //
+    SCI_performSoftwareReset(SCIA_BASE);
+
+
+    //
+    // Configure SCIA for echoback.
+    //
+    SCI_setConfig(SCIA_BASE, DEVICE_LSPCLK_FREQ, 460800, (SCI_CONFIG_WLEN_8 |
+                                                        SCI_CONFIG_STOP_ONE |
+                                                        SCI_CONFIG_PAR_NONE));
+    SCI_resetChannels(SCIA_BASE);
+    SCI_resetRxFIFO(SCIA_BASE);
+    SCI_resetTxFIFO(SCIA_BASE);
+    SCI_clearInterruptStatus(SCIA_BASE, SCI_INT_TXFF | SCI_INT_RXFF);
+    SCI_enableFIFO(SCIA_BASE);
+    SCI_enableModule(SCIA_BASE);
+    SCI_performSoftwareReset(SCIA_BASE);
 }
 
 inline void w2bw_power_enable(void){
@@ -197,6 +256,7 @@ void parse_w2bw_meas(const uint8_t* bytes,struct w2bw_meas* meas){
 //----register addresses
 const uint8_t ADDR_MOD=0x11;
 const uint8_t ADDR_CONFIG=0x10;
+const uint8_t ADDR_CONFIG2=0x14;
 //----trigger modes
 const uint8_t TRIGGER_NONE=0x00;
 const uint8_t TRIGGER_AFTER_WRITE_FRAME=0b00100000;
@@ -206,9 +266,12 @@ const uint8_t MOD_REG_MASK_MODE_MASTER=0b00000001;
 const uint8_t MOD_REG_MASK_INT_DISABLE=0b00000100;
 const uint8_t MOD_REG_MASK_ONEBYTE_EN=0b00010000;
 const uint8_t MOD_REG_MASK_ODD_PARITY_BIT=0b10000000;
+const uint8_t MOD_REG_MASK_X2_SENS=0b00001000;
 //Config Register
 const uint8_t CONFIG_REG_MASK_TRIG_AFTER5H=0b00100000;
 const uint8_t CONFIG_REG_ODD_PARITY_BOT=0b00000001;
+//MOD2 register
+const uint8_t MOD2_REG_MASK_X4_SENS=0b00000001;
 
 //global variables
 struct w2bw_meas current_meas;
@@ -254,14 +317,21 @@ void main(void)
     //set the mode to master controlled mode, enable interrupts (associated bit is zero), enable 1 byte read, write parity bit
     //Hint: Parity bit needs to be set correctly, otherwise sensor will not communicate
     // format { [Trigger-Bits,Register-Address] , [Register Contents] }
-    const uint8_t WRITE_CONFIG_MOD_REG[]={ADDR_MOD|TRIGGER_AFTER_WRITE_FRAME,
-                                          MOD_REG_MASK_ODD_PARITY_BIT|MOD_REG_MASK_MODE_MASTER|MOD_REG_MASK_ONEBYTE_EN};
+    const uint8_t WRITE_CONFIG_MOD1_REG[]={ADDR_MOD|TRIGGER_AFTER_WRITE_FRAME,
+                                          MOD_REG_MASK_MODE_MASTER|MOD_REG_MASK_ONEBYTE_EN|MOD_REG_MASK_X2_SENS};
     const uint8_t WRITE_CONFIG_CONFIG_REG[]={ADDR_CONFIG,
                                              CONFIG_REG_ODD_PARITY_BOT|CONFIG_REG_MASK_TRIG_AFTER5H};
+    const uint8_t WRITE_CONFIG_CONFIG2_REG[]={ADDR_CONFIG2,
+                                           MOD2_REG_MASK_X4_SENS};
     //configure the register MOD1 by writing to it
-    i2c_write(0,WRITE_CONFIG_MOD_REG,2);
+    i2c_write(0,WRITE_CONFIG_MOD1_REG,2);
     //configure the register CONFIG by writing to it
     i2c_write(0,WRITE_CONFIG_CONFIG_REG,2);
+    //configure the register MOD2 by writing to it
+    i2c_write(0,WRITE_CONFIG_CONFIG2_REG,2);
+
+    //initialize the SCI comm interface to the PC
+    sci_comm();
 
     //set up timer & enable interrupts
     timer_init();
@@ -269,12 +339,20 @@ void main(void)
     EINT;
     ERTM;
 
+    uint16_t loop_counter=0;
     for(;;){
         if(start_meas){
             uint8_t read_buf[6];
+            //SCI_writeCharArray(SCIA_BASE,(uint16_t*)teststr,sizeof(teststr)/2); //test string for testing the serial comm
+
+            //serialize last measurement and send over UART
+            serialize_w2bw(sendbuf,&current_meas);
+            SCI_writeCharArray(SCIA_BASE,sendbuf,sizeof(sendbuf));
+
             i2c_read(0,read_buf,6);
             parse_w2bw_meas(read_buf,&current_meas);
             start_meas=0;
+            loop_counter+=1;
         }
     }
 }
