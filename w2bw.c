@@ -230,6 +230,10 @@ uint8_t i2c_read(uint8_t addr,uint8_t* data,uint8_t count){
 
 void parse_w2bw_meas(const uint8_t* bytes,struct w2bw_meas* meas){
     uint16_t Bx,By,Bz,Temp;
+    Bx=0;
+    By=0;
+    Bz=0;
+    Temp=0;
     //read the 8 most significant bytes and fill up the leading 4 bits with either 1s or 0s
     Bx=bytes[0]<<4;
     if(bytes[0]&0b10000000)
@@ -342,15 +346,16 @@ void main(void)
     uint16_t loop_counter=0;
     for(;;){
         if(start_meas){
-            uint8_t read_buf[6];
+            uint8_t read_buf[7];
             //SCI_writeCharArray(SCIA_BASE,(uint16_t*)teststr,sizeof(teststr)/2); //test string for testing the serial comm
 
             //serialize last measurement and send over UART
             serialize_w2bw(sendbuf,&current_meas);
             SCI_writeCharArray(SCIA_BASE,sendbuf,sizeof(sendbuf));
 
-            i2c_read(0,read_buf,6);
+            i2c_read(0,read_buf,7);
             parse_w2bw_meas(read_buf,&current_meas);
+
             start_meas=0;
             loop_counter+=1;
         }
