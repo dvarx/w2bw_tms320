@@ -20,6 +20,8 @@
 #include "device.h"
 #include "w2bw.h"
 
+#define TIMER_PERIOD_US 1000
+
 uint8_t start_meas=0;
 //test string for testing the serial comm
 const char teststr[]="NNAABBCC\r\n";
@@ -103,7 +105,7 @@ void gpio_init(void){
 }
 
 void timer_init(void){
-    const uint32_t timer_perios_us=2000;
+    const uint32_t timer_perios_us=TIMER_PERIOD_US;
     CPUTimer_setPeriod(CPUTIMER0_BASE,DEVICE_SYSCLK_FREQ/1000000*timer_perios_us);
     CPUTimer_setEmulationMode(CPUTIMER0_BASE,
                               CPUTIMER_EMULATIONMODE_STOPAFTERNEXTDECREMENT);
