@@ -20,7 +20,7 @@
 #include "device.h"
 #include "w2bw.h"
 
-#define TIMER_PERIOD_US 1000
+#define TIMER_PERIOD_US 500
 
 uint8_t start_meas=0;
 //test string for testing the serial comm
@@ -282,6 +282,12 @@ const uint8_t MOD2_REG_MASK_X4_SENS=0b00000001;
 //global variables
 struct w2bw_meas current_meas;
 
+//global memores of last N measurements
+#define N_MEM 1024
+int16_t Bxmem[N_MEM]={0};
+int16_t Bymem[N_MEM]={0};
+int16_t Bzmem[N_MEM]={0};
+
 //
 // Main
 //
@@ -357,6 +363,9 @@ void main(void)
 
             i2c_read(0,read_buf,7);
             parse_w2bw_meas(read_buf,&current_meas);
+            Bxmem[loop_counter%N_MEM]=current_meas.Bx;
+            Bymem[loop_counter%N_MEM]=current_meas.By;
+            Bzmem[loop_counter%N_MEM]=current_meas.Bz;
 
             start_meas=0;
             loop_counter+=1;
