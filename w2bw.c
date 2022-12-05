@@ -288,6 +288,8 @@ int16_t Bxmem[N_MEM]={0};
 int16_t Bymem[N_MEM]={0};
 int16_t Bzmem[N_MEM]={0};
 
+#define HIGH_RANGE_LOW_SENS
+
 //
 // Main
 //
@@ -329,12 +331,22 @@ void main(void)
     //set the mode to master controlled mode, enable interrupts (associated bit is zero), enable 1 byte read, write parity bit
     //Hint: Parity bit needs to be set correctly, otherwise sensor will not communicate
     // format { [Trigger-Bits,Register-Address] , [Register Contents] }
+#ifndef HIGH_RANGE_LOW_SENS
     const uint8_t WRITE_CONFIG_MOD1_REG[]={ADDR_MOD|TRIGGER_AFTER_WRITE_FRAME,
                                           MOD_REG_MASK_MODE_MASTER|MOD_REG_MASK_ONEBYTE_EN|MOD_REG_MASK_X2_SENS};
+#else
+    const uint8_t WRITE_CONFIG_MOD1_REG[]={ADDR_MOD|TRIGGER_AFTER_WRITE_FRAME,
+                                          MOD_REG_MASK_MODE_MASTER|MOD_REG_MASK_ONEBYTE_EN|MOD_REG_MASK_ODD_PARITY_BIT};
+#endif
     const uint8_t WRITE_CONFIG_CONFIG_REG[]={ADDR_CONFIG,
                                              CONFIG_REG_ODD_PARITY_BOT|CONFIG_REG_MASK_TRIG_AFTER5H};
+#ifndef HIGH_RANGE_LOW_SENS
     const uint8_t WRITE_CONFIG_CONFIG2_REG[]={ADDR_CONFIG2,
                                            MOD2_REG_MASK_X4_SENS};
+#else
+    const uint8_t WRITE_CONFIG_CONFIG2_REG[]={ADDR_CONFIG2,
+                                              MOD2_REG_MASK_X4_SENS};
+#endif
     //configure the register MOD1 by writing to it
     i2c_write(0,WRITE_CONFIG_MOD1_REG,2);
     //configure the register CONFIG by writing to it
