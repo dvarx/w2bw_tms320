@@ -8,7 +8,7 @@
 //
 // $Release Date: $
 // $Copyright:
-// Copyright (C) 2013-2022 Texas Instruments Incorporated - http://www.ti.com/
+// Copyright (C) 2013-2021 Texas Instruments Incorporated - http://www.ti.com/
 //
 // Redistribution and use in source and binary forms, with or without 
 // modification, are permitted provided that the following conditions 
@@ -44,8 +44,6 @@
 // Included Files
 //
 #include "driverlib.h"
-
-#define _LAUNCHXL_F28379D
 
 #if (!defined(CPU1) && !defined(CPU2))
 #error "You must define CPU1 or CPU2 in your project properties.  Otherwise, \
@@ -386,7 +384,7 @@ extern uint16_t Device_bootCPU2(uint32_t ulBootMode);
 //! @return None
 //
 //*****************************************************************************
-extern void __error__(const char *filename, uint32_t line);
+extern void __error__(char *filename, uint32_t line);
 extern void Example_setResultPass(void);
 extern void Example_setResultFail(void);
 extern void Example_done(void);
