@@ -13,7 +13,8 @@
 #define SDA_PIN 104
 #define SCL_PIN 105
 
-#define I2C_W2BW_ADDRESS 0x35
+//#define I2C_W2BW_ADDRESS 0x35
+#define I2C_W2BW_ADDRESS 0x22
 
 
 

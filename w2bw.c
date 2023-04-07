@@ -55,7 +55,7 @@ void serialize_w2bw(uint16_t* dest, const struct w2bw_meas* meas){
 
 void init_i2c(void){
     I2C_disableModule(I2CA_BASE);
-    I2C_initMaster(I2CA_BASE, DEVICE_SYSCLK_FREQ, 400000, I2C_DUTYCYCLE_50);
+    I2C_initMaster(I2CA_BASE, DEVICE_SYSCLK_FREQ, 200000, I2C_DUTYCYCLE_50);
     I2C_setConfig(I2CA_BASE, I2C_MASTER_SEND_MODE);
     I2C_setSlaveAddress(I2CA_BASE, 0);
     I2C_disableLoopback(I2CA_BASE);
@@ -277,6 +277,7 @@ const uint8_t MOD_REG_MASK_MODE_MASTER=0b00000001;
 const uint8_t MOD_REG_MASK_INT_DISABLE=0b00000100;
 const uint8_t MOD_REG_MASK_ONEBYTE_EN=0b00010000;
 const uint8_t MOD_REG_MASK_ODD_PARITY_BIT=0b10000000;
+const uint8_t MOD_REG_MASK_A1=0b00100000;
 //MOD2 register
 const uint8_t MOD2_REG_MASK_X4_SENS=0b00000001;
 
@@ -336,7 +337,7 @@ void main(void)
                                              CONFIG_REG_MASK_TRIG_AFTER5H|CONFIG_REG_MASK_X2_SENS|CONFIG_REG_ODD_PARITY_BIT};
     // TODO : potential_error
     const uint8_t WRITE_CONFIG_MOD1_REG[]={ADDR_MOD,
-                                          MOD_REG_MASK_MODE_MASTER|MOD_REG_MASK_ONEBYTE_EN|MOD_REG_MASK_ODD_PARITY_BIT};
+                                          MOD_REG_MASK_MODE_MASTER|MOD_REG_MASK_ONEBYTE_EN|MOD_REG_MASK_A1};
 
     const uint8_t WRITE_CONFIG_CONFIG2_REG[]={ADDR_CONFIG2,
                                            MOD2_REG_MASK_X4_SENS};
