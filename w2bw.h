@@ -13,8 +13,28 @@
 #define SDA_PIN 104
 #define SCL_PIN 105
 
-//#define I2C_W2BW_ADDRESS 0x35
-#define I2C_W2BW_ADDRESS 0x22
+//sensor definitions
+//---------------------------------
+//the A0 version of the sensor is on the breakout board from Infineon
+//the A1 version of the sensor is on the thin breakoutboard for the endoscope
+#define SENSOR_A0
+//#define SENSOR_A1
+
+
+//range definitions
+//---------------------------------
+//#define SHORT_RANGE         //-50mT to 50mT , 30.8bits per mT
+#define LONG_RANGE          // -150mT to 150mT , 7.7bits per mT
+
+
+
+#ifdef SENSOR_A0
+    #define I2C_W2BW_ADDRESS 0x35
+#endif
+
+#ifdef SENSOR_A1
+    #define I2C_W2BW_ADDRESS 0x22
+#endif
 
 
 

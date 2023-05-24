@@ -20,7 +20,7 @@
 #include "device.h"
 #include "w2bw.h"
 
-#define TIMER_PERIOD_US 500
+#define TIMER_PERIOD_US 1000
 
 uint8_t start_meas=0;
 //test string for testing the serial comm
@@ -333,14 +333,38 @@ void main(void)
     //set the mode to master controlled mode, enable interrupts (associated bit is zero), enable 1 byte read, write parity bit
     //Hint: Parity bit needs to be set correctly, otherwise sensor will not communicate
     // format { [Trigger-Bits,Register-Address] , [Register Contents] }
-    const uint8_t WRITE_CONFIG_CONFIG_REG[]={ADDR_CONFIG,
-                                             CONFIG_REG_MASK_TRIG_AFTER5H|CONFIG_REG_MASK_X2_SENS|CONFIG_REG_ODD_PARITY_BIT};
-    // TODO : potential_error
-    const uint8_t WRITE_CONFIG_MOD1_REG[]={ADDR_MOD,
-                                          MOD_REG_MASK_MODE_MASTER|MOD_REG_MASK_ONEBYTE_EN|MOD_REG_MASK_A1};
 
-    const uint8_t WRITE_CONFIG_CONFIG2_REG[]={ADDR_CONFIG2,
-                                           MOD2_REG_MASK_X4_SENS};
+    #ifdef SENSOR_A1
+        const uint8_t WRITE_CONFIG_CONFIG_REG[]={ADDR_CONFIG,
+                                                 CONFIG_REG_MASK_TRIG_AFTER5H|CONFIG_REG_MASK_X2_SENS|CONFIG_REG_ODD_PARITY_BIT};
+        // TODO : potential_error
+        const uint8_t WRITE_CONFIG_MOD1_REG[]={ADDR_MOD,
+                                              MOD_REG_MASK_MODE_MASTER|MOD_REG_MASK_ONEBYTE_EN|MOD_REG_MASK_A1};
+
+        const uint8_t WRITE_CONFIG_CONFIG2_REG[]={ADDR_CONFIG2,
+                                               MOD2_REG_MASK_X4_SENS};
+    #endif
+    #ifdef SENSOR_A0
+        #ifdef SHORT_RANGE
+            const uint8_t WRITE_CONFIG_CONFIG_REG[]={ADDR_CONFIG,
+                                                     CONFIG_REG_MASK_TRIG_AFTER5H|CONFIG_REG_MASK_X2_SENS|CONFIG_REG_ODD_PARITY_BIT};
+            // TODO : potential_error
+            const uint8_t WRITE_CONFIG_MOD1_REG[]={ADDR_MOD,
+                                                   MOD_REG_MASK_MODE_MASTER|MOD_REG_MASK_ONEBYTE_EN|MOD_REG_MASK_ODD_PARITY_BIT};
+
+            const uint8_t WRITE_CONFIG_CONFIG2_REG[]={ADDR_CONFIG2,
+                                                   MOD2_REG_MASK_X4_SENS};
+        #endif
+        #ifdef LONG_RANGE
+                const uint8_t WRITE_CONFIG_CONFIG_REG[]={ADDR_CONFIG,
+                                                         CONFIG_REG_MASK_TRIG_AFTER5H|CONFIG_REG_ODD_PARITY_BIT};
+                // TODO : potential_error
+                const uint8_t WRITE_CONFIG_MOD1_REG[]={ADDR_MOD,
+                                                       MOD_REG_MASK_MODE_MASTER|MOD_REG_MASK_ONEBYTE_EN|MOD_REG_MASK_ODD_PARITY_BIT};
+
+                const uint8_t WRITE_CONFIG_CONFIG2_REG[]={ADDR_CONFIG2};
+        #endif
+    #endif
 
 
     //configure the register CONFIG by writing to it
