@@ -17,8 +17,8 @@
 //---------------------------------
 //the A0 version of the sensor is on the breakout board from Infineon
 //the A1 version of the sensor is on the thin breakoutboard for the endoscope
-#define SENSOR_A0
-//#define SENSOR_A1
+//#define SENSOR_A0
+#define SENSOR_A1
 
 
 //range definitions

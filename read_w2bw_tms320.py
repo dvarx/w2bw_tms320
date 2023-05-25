@@ -1,9 +1,6 @@
 from re import I
-import rospkg
-rospack = rospkg.RosPack()
 import matplotlib.pyplot as plt
 from math import sqrt
-pkg_path=rospack.get_path("ripple_localization")
 import serial
 
 
