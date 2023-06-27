@@ -17,14 +17,14 @@
 //---------------------------------
 //the A0 version of the sensor is on the breakout board from Infineon
 //the A1 version of the sensor is on the thin breakoutboard for the endoscope
-//#define SENSOR_A0
-#define SENSOR_A1
+#define SENSOR_A0
+//#define SENSOR_A1
 
 
 //range definitions
 //---------------------------------
-//#define SHORT_RANGE         //-50mT to 50mT , 30.8bits per mT
-#define LONG_RANGE          // -150mT to 150mT , 7.7bits per mT
+#define SHORT_RANGE         //-50mT to 50mT , 30.8bits per mT
+//#define LONG_RANGE          // -150mT to 150mT , 7.7bits per mT
 
 
 

@@ -102,10 +102,10 @@ def w2bw_read_n_bytes(N,devfptr="/dev/tms320",samplerate=500):
     ser.close()
     return data_bytes
 
-no_frames=20
+no_frames=50
 no_meas_per_frame=100
 no_bytes_per_meas=8
-fsample=1000
+fsample=2000
 
 #default resolution for the long range setting
 tesla_per_bit=1e-3/7.7
@@ -114,7 +114,7 @@ tesla_per_bit=1e-3/30.8
 
 databytes=w2bw_read_n_bytes(no_frames*(no_meas_per_frame)*no_bytes_per_meas,"/dev/ttyUSB0",fsample)
 
-data=read_w2bw_tms320_data(databytes,is_akm=False,N=10*no_meas_per_frame)
+data=read_w2bw_tms320_data(databytes,is_akm=False,N=no_frames*no_meas_per_frame)
 #data=read_w2bw_tms320_data_syncframe(databytes)
 
 Bxs=data["Bxs"]

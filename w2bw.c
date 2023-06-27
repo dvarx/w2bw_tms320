@@ -20,7 +20,7 @@
 #include "device.h"
 #include "w2bw.h"
 
-#define TIMER_PERIOD_US 1000
+#define TIMER_PERIOD_US 500
 
 uint8_t start_meas=0;
 //test string for testing the serial comm
@@ -335,7 +335,7 @@ void main(void)
     // format { [Trigger-Bits,Register-Address] , [Register Contents] }
 
     #ifdef SENSOR_A1
-        const uint8_t WRITE_CONFIG_CONFIG_REG[]={ADDR_CONFIG,
+        const uint8_t WRITE_CONFIG_CONFI    G_REG[]={ADDR_CONFIG,
                                                  CONFIG_REG_MASK_TRIG_AFTER5H|CONFIG_REG_MASK_X2_SENS|CONFIG_REG_ODD_PARITY_BIT};
         // TODO : potential_error
         const uint8_t WRITE_CONFIG_MOD1_REG[]={ADDR_MOD,
