@@ -2,6 +2,7 @@ from re import I
 import matplotlib.pyplot as plt
 from math import sqrt
 import serial
+import pickle5 as pickle
 
 
 def read_w2bw_tms320_data(datasource,N=0,is_akm=False):
@@ -30,6 +31,8 @@ def read_w2bw_tms320_data(datasource,N=0,is_akm=False):
     Bxs=[]
     Bys=[]
     Bzs=[]
+    Bms=[]
+    Bmprev=0
     Bxprev=0
     Byprev=0
     Bzprev=0
@@ -64,6 +67,7 @@ def read_w2bw_tms320_data(datasource,N=0,is_akm=False):
             By=tesla_per_bit*int.from_bytes(by_bytes,"big",signed=True)
             Bz=tesla_per_bit*int.from_bytes(bz_bytes,"big",signed=True)
 
+        Bm=sqrt(Bx**2+By**2+Bz**2)
         dataframe=bytearray([data[idx+n] for n in range(0,8)])
 
         #detect frame erros
@@ -82,10 +86,12 @@ def read_w2bw_tms320_data(datasource,N=0,is_akm=False):
         Bxs.append(Bx)
         Bys.append(By)
         Bzs.append(Bz)
+        Bms.append(Bm)
         #store values
         Bxprev=Bx
         Byprev=By
         Bzprev=Bz
+        Bmprev=Bm
 
         idx+=8
         no_frames_read+=1
@@ -94,7 +100,7 @@ def read_w2bw_tms320_data(datasource,N=0,is_akm=False):
     
     if read_from_file:
         fptr.close()
-    return {"Bxs":Bxs,"Bys":Bys,"Bzs":Bzs}
+    return {"Bxs":Bxs,"Bys":Bys,"Bzs":Bzs,"Bms":Bms}
 
 def w2bw_read_n_bytes(N,devfptr="/dev/tms320",samplerate=500):
     ser=serial.Serial(devfptr,460800,timeout=N/samplerate*2)
@@ -120,11 +126,20 @@ data=read_w2bw_tms320_data(databytes,is_akm=False,N=no_frames*no_meas_per_frame)
 Bxs=data["Bxs"]
 Bys=data["Bys"]
 Bzs=data["Bzs"]
+Bms=data["Bms"]
 
-plt.subplot(311)
+# Save data in pickle file
+with open('z_10mT_15Hz.txt', 'wb') as f:
+    pickle.dump(data,f)    
+
+f.close()
+
+plt.subplot(411)
 plt.plot(Bxs)
-plt.subplot(312)
+plt.subplot(412)
 plt.plot(Bys)
-plt.subplot(313)
+plt.subplot(413)
 plt.plot(Bzs)
+plt.subplot(414)
+plt.plot(Bms)
 plt.show()
